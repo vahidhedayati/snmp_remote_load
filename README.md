@@ -8,10 +8,10 @@ http://exchange.nagios.org/directory/Plugins/System-Metrics/CPU-Usage-and-Load/s
 
 # This script takes:
 # -H -l -p
-# Once given a hostname and community string with or without specific load limit
-# with no load limit, using snmp it will look at amount of cpu's and calculate load average / cpu count -
-# -- UPDATES - debian - ubuntu systems run:
-# sudo apt-get install snmp-mibs-downloader
+ Once given a hostname and community string with or without specific load limit
+ with no load limit, using snmp it will look at amount of cpu's and calculate load average / cpu count -
+ -- UPDATES - debian - ubuntu systems run:
+ sudo apt-get install snmp-mibs-downloader
 
 
 This has now been updated in the uploaded script, you can revert back to old commented method if you do not with to use HOST-RESOURCES-MIB and find the old commented out method works for you.
@@ -60,7 +60,7 @@ command_line $USER1$/snmp_remote_load -H $HOSTADDRESS$ -p $ARG1$
 }
 
 
-; this will use the auto command
+# this will use the auto command
 define service{
 use ....
 hostgroup_name generic-uat
@@ -68,7 +68,7 @@ service_description cpu_load
 check_command check_auto_load_remote!public!
 }
 
-; this will set the load max level to 2
+# this will set the load max level to 2
 define service{
 use ....
 hostgroup_name generic-uat
