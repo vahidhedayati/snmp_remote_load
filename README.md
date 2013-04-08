@@ -47,20 +47,28 @@ so a 4 cpu server will have a load set to 6 if it goes above 4 then alerts are s
 |Actual_cpus:_4|Alert_Limit:1|-|1 minute load->CRITICAL:2.35833|-|5 minute load->CRITICAL:1.78333|-|15 minute load->CRITICAL:1.59833|-|FINAL_RESULT:CRITICAL
 
 
+# Command configuration
 define command {
+
 command_name check_load_remote
+
 command_line $USER1$/snmp_remote_load -H $HOSTADDRESS$ -l $ARG1$ -p $ARG2$
+
 }
 
 
 
 define command {
+
 command_name check_auto_load_remote
+
 command_line $USER1$/snmp_remote_load -H $HOSTADDRESS$ -p $ARG1$
+
 }
 
 
-# this will use the auto command
+
+# Service configuration
 define service{
 
 use ....
