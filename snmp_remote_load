@@ -1,0 +1,140 @@
+#!/bin/bash
+
+# This script takes:
+# -H <host> -l  <load_limit(optional)> -p <community>
+# Once given a hostname and community string with or without specific load limit
+# with no load limit, using snmp it will look at amount of cpu's and calculate load average / cpu count - 
+# cpu count hacked to be more than 2 than actually on host to alert when it looks really serious
+
+# This script requires SNMP to be configured and installed on both local / remote servers 
+# -- UPDATES - debian - ubuntu systems run:
+# sudo apt-get install snmp-mibs-downloader
+
+
+snmpwalk="/usr/bin/snmpwalk"
+snmpget="/usr/bin/snmpget"
+
+# Set to 0 if no load limit set then it will get cpu count and increment this
+get_cpu=0;
+
+
+function usage() { 
+  echo "$0 -H localhost -l 1 -p public"
+	echo "$0 -H localhost -l -p public"
+	echo "$0 -H localhost -p public"
+	echo "-----------------------------------"
+	echo "-H is hostname set to localhost"
+	echo "-l is load limit set to 1 or not set at all"
+	echo "-p is snmp passsword"
+	echo "-----------------------------------"
+	echo "You can leave the load blank , this then defines the load according to CPU's"
+	echo "so a 4 cpu server will have a load set to 6 if it goes above 4 then alerts are sent"
+}
+
+
+
+function return_cpu() { 
+	# Below had been working on work machines 
+	#cpu_count=$($snmpwalk -v2c -c $pass -Oq $server hrProcessorLoad|wc -l)
+
+	# This is a generic view that should hopefully work on all Linux Machines
+	cpu_count=$($snmpwalk -v2c -c $pass -Oq $server HOST-RESOURCES-MIB::hrProcessorLoad|wc -l)
+
+	if [ "$cpu_count" == "" ]; then
+		cpu_count=1;
+	fi
+
+	actual_cpus=$cpu_count
+
+	# VH: To stop default cpu count from alerting we will add an extra cpu to ensure load is sufficient for an alert
+	((cpu_count++))
+	((cpu_count++))
+}
+
+
+
+function calculate_load() { 
+	return_cpu;
+	if [ "$limit" == "" ]; then 
+ 		limit=$cpu_count;
+	fi
+	loads="1 2 3"
+	bad=0;
+	loadrun="";
+	echo -n "|Actual_cpus:_$actual_cpus|Alert_Limit:$limit"
+	for ids in $loads
+	do
+		if [[ $ids == 1 ]]; then
+			loadrun="1 minute load";
+		elif [[ $ids == 2 ]]; then
+                	loadrun="5 minute load";
+		elif [[ $ids == 3 ]]; then
+                	loadrun="15 minute load";
+		fi
+		run=$($snmpget -v2c -c $pass $server  .1.3.6.1.4.1.2021.10.1.3.$ids)
+		if [[ $run =~ "STRING" ]]; then 
+			current_load=$(echo $run|awk  -v limit=$limit -v cpus=$cpu_count -F"STRING: " '{ if  ( ($2 > 0)) { smb=($2 / cpus); print smb;} else { print $2; } }'|tr -d '"')
+			calc=$(echo $limit|awk -v cload=$current_load '{$3 = cload / $1; printf "%f", $3}')
+                	if [[ $calc < 1 ]]; then
+				echo -n "|-|$loadrun->OK:$current_load"
+                	else
+				echo -n "|-|$loadrun->CRITICAL:$current_load"
+                        	((bad++))
+                	fi
+		else 
+			echo -n "CRITICAL: $loadrun does not exist "; 
+			((bad++))
+		fi 
+	done
+
+	if [[ $bad > 0 ]]; then
+		echo  "|-|FINAL_RESULT:CRITICAL"
+		exit 2;
+	else
+		echo  "|-|FINAL_RESULT:GOOD";
+		exit 0;
+	fi
+
+}
+
+while test -n "$1"; do
+    case "$1" in
+        --help|-h)
+           usage
+            exit 0
+            ;;
+        --host|-H)
+		server=$2;
+		shift
+            ;;
+        --limit|-l)
+		limit=$2;
+		if [ "$limit" == "-p" ]; then
+		 	limit="";
+			pass=$3;
+                	calculate_load;
+                	exit
+		fi
+		shift
+            ;;
+
+        --snmpass|-p)
+		pass=$2;
+		calculate_load;
+		exit
+            ;;
+  	*)
+
+		echo "Unknown argument: $1"
+	 	echo "-h for help";
+		exit 1
+            ;;
+    esac
+	shift
+done
+
+
+if [ $# -eq 0 ]; then
+	echo "-h for help";
+    	exit 1;
+fi
