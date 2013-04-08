@@ -63,8 +63,11 @@ command_line $USER1$/snmp_remote_load -H $HOSTADDRESS$ -p $ARG1$
 # this will use the auto command
 define service{
 use ....
+
 hostgroup_name generic-uat
+
 service_description cpu_load
+
 check_command check_auto_load_remote!public!
 }
 
