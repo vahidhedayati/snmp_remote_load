@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # This script takes:
-# -H <host> -l  <load_limit(optional)> -p <community>
+# <host> <community> <load_limit(optional)>
 # Once given a hostname and community string with or without specific load limit
 # with no load limit, using snmp it will look at amount of cpu's and calculate load average / cpu count - 
 # cpu count hacked to be more than 2 than actually on host to alert when it looks really serious
@@ -19,8 +19,7 @@ get_cpu=0;
 
 
 function usage() { 
-  echo "$0 -H localhost -l 1 -p public"
-	echo "$0 -H localhost -l -p public"
+	echo "$0 -H localhost -l 1 -p public"
 	echo "$0 -H localhost -p public"
 	echo "-----------------------------------"
 	echo "-H is hostname set to localhost"
@@ -55,13 +54,15 @@ function return_cpu() {
 
 function calculate_load() { 
 	return_cpu;
+	good_res="";
+	bad_res="";
 	if [ "$limit" == "" ]; then 
  		limit=$cpu_count;
 	fi
 	loads="1 2 3"
 	bad=0;
 	loadrun="";
-	echo -n "|Actual_cpus:_$actual_cpus|Alert_Limit:$limit"
+	cpu_info="Actual_cpus:$actual_cpus - Alert_Limit:$limit";
 	for ids in $loads
 	do
 		if [[ $ids == 1 ]]; then
@@ -76,22 +77,22 @@ function calculate_load() {
 			current_load=$(echo $run|awk  -v limit=$limit -v cpus=$cpu_count -F"STRING: " '{ if  ( ($2 > 0)) { smb=($2 / cpus); print smb;} else { print $2; } }'|tr -d '"')
 			calc=$(echo $limit|awk -v cload=$current_load '{$3 = cload / $1; printf "%f", $3}')
                 	if [[ $calc < 1 ]]; then
-				echo -n "|-|$loadrun->OK:$current_load"
+				good_res=$good_res" ($loadrun : $current_load) - " 
                 	else
-				echo -n "|-|$loadrun->CRITICAL:$current_load"
+				bad_res=$bad_res" ($loadrun : $current_load) - " 
                         	((bad++))
                 	fi
 		else 
-			echo -n "CRITICAL: $loadrun does not exist "; 
+			echo -n "$loadrun does not exist "; 
 			((bad++))
 		fi 
 	done
 
 	if [[ $bad > 0 ]]; then
-		echo  "|-|FINAL_RESULT:CRITICAL"
+		echo  "CRITICAL: $cpu_info $bad_res"
 		exit 2;
 	else
-		echo  "|-|FINAL_RESULT:GOOD";
+		echo  "OK: $cpu_info $good_res";
 		exit 0;
 	fi
 
