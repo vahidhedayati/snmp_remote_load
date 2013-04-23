@@ -25,7 +25,6 @@
 # -- UPDATES - debian - ubuntu systems run:
 # sudo apt-get install snmp-mibs-downloader
 
-
 snmpwalk="/usr/bin/snmpwalk"
 snmpget="/usr/bin/snmpget"
 
@@ -71,6 +70,8 @@ function calculate_load() {
 	return_cpu;
 	good_res="";
 	bad_res="";
+	graphtext="|";
+       
 	if [ "$limit" == "" ]; then 
  		limit=$cpu_count;
 	fi
@@ -81,20 +82,22 @@ function calculate_load() {
 	for ids in $loads
 	do
 		if [[ $ids == 1 ]]; then
-			loadrun="1 minute load";
+			loadrun="1_minute";
 		elif [[ $ids == 2 ]]; then
-                	loadrun="5 minute load";
+                	loadrun="5_minutes";
 		elif [[ $ids == 3 ]]; then
-                	loadrun="15 minute load";
+                	loadrun="15_minutes";
 		fi
 		run=$($snmpget -v2c -c $pass $server  .1.3.6.1.4.1.2021.10.1.3.$ids)
 		if [[ $run =~ "STRING" ]]; then 
 			current_load=$(echo $run|awk  -v limit=$limit -v cpus=$cpu_count -F"STRING: " '{ if  ( ($2 > 0)) { smb=($2 / cpus); print smb;} else { print $2; } }'|tr -d '"')
 			calc=$(echo $limit|awk -v cload=$current_load '{$3 = cload / $1; printf "%f", $3}')
                 	if [[ $calc < 1 ]]; then
-				good_res=$good_res" ($loadrun : $current_load) - " 
+				good_res=$good_res" ($loadrun:$current_load) - " 
+				graphtext=$graphtext" $loadrun=$current_load;;;0"
                 	else
-				bad_res=$bad_res" ($loadrun : $current_load) - " 
+				bad_res=$bad_res" ($loadrun:$current_load) - " 
+				graphtext=$graphtext" $loadrun=$current_load;;;0"
                         	((bad++))
                 	fi
 		else 
@@ -104,10 +107,10 @@ function calculate_load() {
 	done
 
 	if [[ $bad > 0 ]]; then
-		echo  "CRITICAL: $cpu_info $bad_res"
+		echo  "CRITICAL: $cpu_info $bad_res $graphtext"
 		exit 2;
 	else
-		echo  "OK: $cpu_info $good_res";
+		echo  "OK: $cpu_info $good_res" $graphtext;
 		exit 0;
 	fi
 
