@@ -65,12 +65,11 @@ function return_cpu() {
 }
 
 
-
 function calculate_load() { 
 	return_cpu;
 	good_res="";
 	bad_res="";
-	graphtext="|";
+	graphtest="|";
        
 	if [ "$limit" == "" ]; then 
  		limit=$cpu_count;
@@ -90,14 +89,15 @@ function calculate_load() {
 		fi
 		run=$($snmpget -v2c -c $pass $server  .1.3.6.1.4.1.2021.10.1.3.$ids)
 		if [[ $run =~ "STRING" ]]; then 
+			actual_load=$(echo $run|awk  -F"STRING: " '{ print $2; }'|tr -d '"')
 			current_load=$(echo $run|awk  -v limit=$limit -v cpus=$cpu_count -F"STRING: " '{ if  ( ($2 > 0)) { smb=($2 / cpus); print smb;} else { print $2; } }'|tr -d '"')
 			calc=$(echo $limit|awk -v cload=$current_load '{$3 = cload / $1; printf "%f", $3}')
                 	if [[ $calc < 1 ]]; then
-				good_res=$good_res" ($loadrun:$current_load) - " 
-				graphtext=$graphtext" $loadrun=$current_load;;;0"
+				good_res=$good_res" ("$loadrun"_avg:"$current_load", "$loadrun"_actual="$actual_load" ) - " 
+				graphtest=$graphtest" $loadrun"_avg"="$current_load"m;;;0  "$loadrun"_actual="$actual_load"m;;;0 "
                 	else
-				bad_res=$bad_res" ($loadrun:$current_load) - " 
-				graphtext=$graphtext" $loadrun=$current_load;;;0"
+				bad_res=$bad_res" ("$loadrun"_avg:"$current_load", "$loadrun"_actual="$actual_load" ) - " 
+				graphtest=$graphtest" $loadrun"_avg"="$current_load"m;;;0 "$loadrun"_actual="$actual_load"m;;;0 "
                         	((bad++))
                 	fi
 		else 
@@ -107,10 +107,10 @@ function calculate_load() {
 	done
 
 	if [[ $bad > 0 ]]; then
-		echo  "CRITICAL: $cpu_info $bad_res $graphtext"
+		echo  "CRITICAL: $cpu_info $bad_res $graphtest"
 		exit 2;
 	else
-		echo  "OK: $cpu_info $good_res" $graphtext;
+		echo  "OK: $cpu_info $good_res" $graphtest;
 		exit 0;
 	fi
 
