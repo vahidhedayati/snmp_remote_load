@@ -25,8 +25,10 @@
 # -- UPDATES - debian - ubuntu systems run:
 # sudo apt-get install snmp-mibs-downloader
 
-snmpwalk="/usr/bin/snmpwalk"
-snmpget="/usr/bin/snmpget"
+# timeout's added -t 60 to ensure even servers with high traffic can respond
+# sleep added within for loop to stop any snmp flooding
+snmpwalk="/usr/bin/snmpwalk -t 60 "
+snmpget="/usr/bin/snmpget -t 60 "
 
 # Set to 0 if no load limit set then it will get cpu count and increment this
 get_cpu=0;
@@ -63,6 +65,7 @@ function return_cpu() {
 	((cpu_count++))
 	((cpu_count++))
 }
+
 
 
 function calculate_load() { 
@@ -104,6 +107,7 @@ function calculate_load() {
 			echo -n "$loadrun does not exist "; 
 			((bad++))
 		fi 
+		sleep 2;
 	done
 
 	if [[ $bad > 0 ]]; then
